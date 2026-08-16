@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
-from .models import Status
+from .models import Status, Task
 
 User = get_user_model()
 
@@ -48,3 +48,16 @@ class StatusForm(forms.ModelForm):
         model = Status
         fields = ('name',)
         labels = {'name': 'Имя'}
+
+
+class TaskForm(forms.ModelForm):
+    class Meta:
+        model = Task
+        fields = ('name', 'description', 'status', 'executor', 'labels')
+        labels = {
+            'name': 'Имя',
+            'description': 'Описание',
+            'status': 'Статус',
+            'executor': 'Исполнитель',
+            'labels': 'Метки',
+        }

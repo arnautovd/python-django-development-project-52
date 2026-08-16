@@ -23,6 +23,9 @@
                     </li>
                     {% if user.is_authenticated %}
                         <li class="nav-item">
+                            <a class="nav-link" href="{% url 'tasks' %}">Задачи</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="{% url 'statuses' %}">Статусы</a>
                         </li>
                     {% endif %}
