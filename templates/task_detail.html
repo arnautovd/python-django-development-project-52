@@ -19,10 +19,10 @@
     <dd class="col-sm-9">{{ task.status.name }}</dd>
 
     <dt class="col-sm-3">Автор</dt>
-    <dd class="col-sm-9">{{ task.author.username }}</dd>
+    <dd class="col-sm-9">{{ task.author.get_full_name|default:task.author.username }}</dd>
 
     <dt class="col-sm-3">Исполнитель</dt>
-    <dd class="col-sm-9">{{ task.executor.username|default:"-" }}</dd>
+    <dd class="col-sm-9">{{ task.executor.get_full_name|default:task.executor.username|default:"-" }}</dd>
 
     <dt class="col-sm-3">Метки</dt>
     <dd class="col-sm-9">

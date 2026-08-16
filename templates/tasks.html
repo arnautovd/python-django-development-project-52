@@ -44,8 +44,8 @@
                 <tr>
                     <td>{{ task.name }}</td>
                     <td>{{ task.status.name }}</td>
-                    <td>{{ task.author.username }}</td>
-                    <td>{{ task.executor.username|default:"-" }}</td>
+                    <td>{{ task.author.get_full_name|default:task.author.username }}</td>
+                    <td>{{ task.executor.get_full_name|default:task.executor.username|default:"-" }}</td>
                     <td>{{ task.created_at|date:"d.m.Y H:i" }}</td>
                     <td>
                         <a href="{% url 'task_detail' task.pk %}">Показать</a>
