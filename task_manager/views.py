@@ -16,13 +16,14 @@ from django.views.generic import (
 )
 
 from .forms import (
+    LabelForm,
     StatusForm,
     TaskForm,
     UserCreateForm,
     UserLoginForm,
     UserUpdateForm,
 )
-from .models import Status, Task
+from .models import Label, Status, Task
 
 User = get_user_model()
 
@@ -188,4 +189,40 @@ class TaskDeleteView(LoginRequiredMixin, DeleteView):
 
     def form_valid(self, form):
         messages.success(self.request, 'Задача успешно удалена')
+        return super().form_valid(form)
+
+
+class LabelListView(LoginRequiredMixin, ListView):
+    model = Label
+    template_name = 'labels.html'
+    context_object_name = 'labels'
+
+
+class LabelCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
+    model = Label
+    form_class = LabelForm
+    template_name = 'label_create.html'
+    success_url = reverse_lazy('labels')
+    success_message = 'Метка успешно создана'
+
+
+class LabelUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
+    model = Label
+    form_class = LabelForm
+    template_name = 'label_update.html'
+    success_url = reverse_lazy('labels')
+    success_message = 'Метка успешно изменена'
+
+
+class LabelDeleteView(LoginRequiredMixin, DeleteView):
+    model = Label
+    template_name = 'label_delete.html'
+    success_url = reverse_lazy('labels')
+
+    def form_valid(self, form):
+        if Task.objects.filter(labels=self.object).exists():
+            messages.error(self.request, 'Невозможно удалить метку')
+            return redirect('labels')
+
+        messages.success(self.request, 'Метка успешно удалена')
         return super().form_valid(form)

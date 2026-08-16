@@ -369,3 +369,100 @@ class TaskViewsTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(User.objects.filter(pk=self.author.pk).exists())
+
+
+@override_settings(ALLOWED_HOSTS=['testserver'])
+class LabelViewsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='label-owner', password='Strong-password-123'
+        )
+        self.label = Label.objects.create(name='backend')
+        self.client.force_login(self.user)
+
+    def messages(self, response):
+        return [str(message) for message in get_messages(response.wsgi_request)]
+
+    def test_label_pages_require_authentication(self):
+        self.client.logout()
+
+        for name, args in (
+            ('labels', []),
+            ('label_create', []),
+            ('label_update', [self.label.pk]),
+            ('label_delete', [self.label.pk]),
+        ):
+            response = self.client.get(reverse(name, args=args))
+            self.assertEqual(response.status_code, 302)
+            self.assertIn('/login/', response.url)
+
+    def test_label_list_contains_date_and_actions(self):
+        response = self.client.get(reverse('labels'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'backend')
+        self.assertContains(response, 'Дата создания')
+        self.assertContains(response, reverse('label_update', args=[self.label.pk]))
+        self.assertContains(response, reverse('label_delete', args=[self.label.pk]))
+
+    def test_label_form_uses_name_field(self):
+        response = self.client.get(reverse('label_create'))
+
+        self.assertContains(response, 'name="name"')
+        self.assertContains(response, 'id="id_name"')
+        self.assertContains(response, 'Имя')
+
+    def test_label_creation_redirects_with_message(self):
+        response = self.client.post(
+            reverse('label_create'), {'name': 'frontend'}
+        )
+
+        self.assertRedirects(response, reverse('labels'))
+        self.assertTrue(Label.objects.filter(name='frontend').exists())
+        self.assertIn('Метка успешно создана', self.messages(response))
+
+    def test_duplicate_label_name_has_validation_error(self):
+        response = self.client.post(
+            reverse('label_create'), {'name': self.label.name}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'already exists')
+
+    def test_label_update_redirects_with_message(self):
+        response = self.client.post(
+            reverse('label_update', args=[self.label.pk]),
+            {'name': 'updated-label'},
+        )
+
+        self.assertRedirects(response, reverse('labels'))
+        self.label.refresh_from_db()
+        self.assertEqual(self.label.name, 'updated-label')
+        self.assertIn('Метка успешно изменена', self.messages(response))
+
+    def test_unused_label_can_be_deleted(self):
+        response = self.client.post(
+            reverse('label_delete', args=[self.label.pk]), follow=True
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Label.objects.filter(pk=self.label.pk).exists())
+        self.assertContains(response, 'Метка успешно удалена')
+
+    def test_label_linked_to_task_cannot_be_deleted(self):
+        status = Status.objects.create(name='Новый')
+        task = Task.objects.create(
+            name='Label task',
+            description='Task with a label',
+            status=status,
+            author=self.user,
+        )
+        task.labels.add(self.label)
+
+        response = self.client.post(
+            reverse('label_delete', args=[self.label.pk]), follow=True
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Label.objects.filter(pk=self.label.pk).exists())
+        self.assertContains(response, 'Невозможно удалить метку')
