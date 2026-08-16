@@ -261,6 +261,20 @@ class TaskViewsTests(TestCase):
     def messages(self, response):
         return [str(message) for message in get_messages(response.wsgi_request)]
 
+    def create_other_task(self):
+        other_author = User.objects.create_user(username='other-author')
+        other_status = Status.objects.create(name='Завершен')
+        other_label = Label.objects.create(name='frontend')
+        other_task = Task.objects.create(
+            name='Other task',
+            description='Other task description',
+            status=other_status,
+            author=other_author,
+            executor=self.author,
+        )
+        other_task.labels.add(other_label)
+        return other_status, other_label, other_task
+
     def test_task_pages_require_authentication(self):
         self.client.logout()
 
@@ -283,6 +297,64 @@ class TaskViewsTests(TestCase):
             self.assertContains(response, text)
         for name in ('task_detail', 'task_update', 'task_delete'):
             self.assertContains(response, reverse(name, args=[self.task.pk]))
+
+    def test_task_filter_form_has_required_fields_and_labels(self):
+        response = self.client.get(reverse('tasks'))
+
+        for field_name in ('status', 'executor', 'label', 'self_tasks'):
+            self.assertContains(response, f'name="{field_name}"')
+            self.assertContains(response, f'id="id_{field_name}"')
+        for label in ('Статус', 'Исполнитель', 'Метка', 'Только свои задачи'):
+            self.assertContains(response, label)
+
+    def test_tasks_can_be_filtered_by_status(self):
+        other_status, _, other_task = self.create_other_task()
+
+        response = self.client.get(reverse('tasks'), {'status': other_status.pk})
+
+        self.assertContains(response, other_task.name)
+        self.assertNotContains(response, self.task.name)
+
+    def test_tasks_can_be_filtered_by_executor(self):
+        _, _, other_task = self.create_other_task()
+
+        response = self.client.get(
+            reverse('tasks'), {'executor': self.author.pk}
+        )
+
+        self.assertContains(response, other_task.name)
+        self.assertNotContains(response, self.task.name)
+
+    def test_tasks_can_be_filtered_by_label(self):
+        _, other_label, other_task = self.create_other_task()
+
+        response = self.client.get(reverse('tasks'), {'label': other_label.pk})
+
+        self.assertContains(response, other_task.name)
+        self.assertNotContains(response, self.task.name)
+
+    def test_tasks_can_be_filtered_to_current_author(self):
+        self.create_other_task()
+
+        response = self.client.get(reverse('tasks'), {'self_tasks': 'on'})
+
+        self.assertContains(response, self.task.name)
+        self.assertNotContains(response, 'Other task')
+
+    def test_task_filters_are_combined(self):
+        other_status, other_label, other_task = self.create_other_task()
+
+        response = self.client.get(
+            reverse('tasks'),
+            {
+                'status': other_status.pk,
+                'label': other_label.pk,
+                'self_tasks': 'on',
+            },
+        )
+
+        self.assertNotContains(response, other_task.name)
+        self.assertNotContains(response, self.task.name)
 
     def test_task_form_has_required_fields_and_labels(self):
         response = self.client.get(reverse('task_create'))

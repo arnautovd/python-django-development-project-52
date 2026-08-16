@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load django_bootstrap5 %}
 
 {% block title %}Задачи{% endblock %}
 
@@ -7,6 +8,24 @@
     <h1>Задачи</h1>
     <a class="btn btn-primary" href="{% url 'task_create' %}">Создать задачу</a>
 </div>
+
+<form method="get" class="row g-3 mb-4">
+    <div class="col-md-3">
+        {% bootstrap_field filter.form.status %}
+    </div>
+    <div class="col-md-3">
+        {% bootstrap_field filter.form.executor %}
+    </div>
+    <div class="col-md-3">
+        {% bootstrap_field filter.form.label %}
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+        {% bootstrap_field filter.form.self_tasks show_label=True %}
+    </div>
+    <div class="col-12">
+        <button class="btn btn-secondary" type="submit">Применить</button>
+    </div>
+</form>
 
 <div class="table-responsive">
     <table class="table table-striped align-middle">

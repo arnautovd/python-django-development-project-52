@@ -14,7 +14,9 @@ from django.views.generic import (
     ListView,
     UpdateView,
 )
+from django_filters.views import FilterView
 
+from .filters import TaskFilter
 from .forms import (
     LabelForm,
     StatusForm,
@@ -138,10 +140,16 @@ class StatusDeleteView(LoginRequiredMixin, DeleteView):
         return redirect(self.get_success_url())
 
 
-class TaskListView(LoginRequiredMixin, ListView):
+class TaskListView(LoginRequiredMixin, FilterView):
     model = Task
     template_name = 'tasks.html'
     context_object_name = 'tasks'
+    filterset_class = TaskFilter
+
+    def get_filterset_kwargs(self, filterset_class):
+        kwargs = super().get_filterset_kwargs(filterset_class)
+        kwargs['request'] = self.request
+        return kwargs
 
 
 class TaskCreateView(LoginRequiredMixin, CreateView):
