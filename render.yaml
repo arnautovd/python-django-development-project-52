@@ -16,6 +16,10 @@ services:
         value: "False"
       - key: ALLOWED_HOSTS
         value: webserver
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
 
 databases:
   - name: hexlet-code-db

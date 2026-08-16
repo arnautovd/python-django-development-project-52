@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 
 import dj_database_url
+import sentry_sdk
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -32,6 +33,19 @@ SECRET_KEY = os.getenv(
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() in {'1', 'true', 'yes'}
+
+SENTRY_DSN = os.getenv('SENTRY_DSN')
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        send_default_pii=True,
+        max_request_body_size='always',
+        traces_sample_rate=0,
+        send_client_reports=False,
+        auto_session_tracking=False,
+        environment=os.getenv('SENTRY_ENVIRONMENT', 'production'),
+        release=os.getenv('SENTRY_RELEASE') or None,
+    )
 
 configured_hosts = [
     host.strip()

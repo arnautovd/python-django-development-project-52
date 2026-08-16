@@ -34,3 +34,5 @@ Local development uses SQLite. Set `DATABASE_URL` in `.env` to use PostgreSQL.
 The `render.yaml` blueprint creates a free web service and PostgreSQL database.
 The web service uses Gunicorn and runs migrations and `collectstatic` during the
 build.
+
+Set `SENTRY_DSN` in the Render environment to send production errors to Bugsink.
