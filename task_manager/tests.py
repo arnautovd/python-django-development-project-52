@@ -1,0 +1,133 @@
+from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
+from django.test import TestCase, override_settings
+from django.urls import reverse
+
+User = get_user_model()
+
+
+@override_settings(ALLOWED_HOSTS=['testserver'])
+class UserViewsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='existing',
+            password='Strong-password-123',
+            first_name='Existing',
+            last_name='User',
+        )
+
+    def messages(self, response):
+        return [str(message) for message in get_messages(response.wsgi_request)]
+
+    def test_users_list_is_public(self):
+        response = self.client.get(reverse('users'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'existing')
+        self.assertContains(response, reverse('user_update', args=[self.user.pk]))
+        self.assertContains(response, reverse('user_delete', args=[self.user.pk]))
+
+    def test_registration_and_login_pages_are_available(self):
+        self.assertEqual(self.client.get(reverse('user_create')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('login')).status_code, 200)
+
+    def test_user_registration_redirects_to_login(self):
+        response = self.client.post(
+            reverse('user_create'),
+            {
+                'first_name': 'New',
+                'last_name': 'User',
+                'username': 'new-user',
+                'password1': 'Strong-password-123',
+                'password2': 'Strong-password-123',
+            },
+        )
+
+        self.assertRedirects(response, reverse('login'))
+        self.assertTrue(User.objects.filter(username='new-user').exists())
+        self.assertIn('Пользователь успешно зарегистрирован', self.messages(response))
+
+    def test_duplicate_username_has_validation_error(self):
+        response = self.client.post(
+            reverse('user_create'),
+            {
+                'first_name': 'Duplicate',
+                'last_name': 'User',
+                'username': 'existing',
+                'password1': 'Strong-password-123',
+                'password2': 'Strong-password-123',
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'already exists')
+
+    def test_login_redirects_to_home(self):
+        response = self.client.post(
+            reverse('login'),
+            {'username': 'existing', 'password': 'Strong-password-123'},
+        )
+
+        self.assertRedirects(response, reverse('home'))
+        self.assertIn('Вы залогинены', self.messages(response))
+
+    def test_logout_is_post_only_and_redirects_to_home(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse('logout'))
+
+        self.assertRedirects(response, reverse('home'))
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
+        self.assertIn('Вы разлогинены', self.messages(response))
+
+    def test_anonymous_user_cannot_update(self):
+        response = self.client.get(reverse('user_update', args=[self.user.pk]))
+
+        self.assertRedirects(
+            response,
+            f'{reverse("login")}?next={reverse("user_update", args=[self.user.pk])}',
+        )
+
+    def test_user_can_update_only_themselves(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse('user_update', args=[self.user.pk]),
+            {
+                'first_name': 'Updated',
+                'last_name': 'Person',
+                'username': 'existing',
+            },
+        )
+
+        self.assertRedirects(response, reverse('users'))
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, 'Updated')
+        self.assertIn('Пользователь успешно изменен', self.messages(response))
+
+    def test_user_cannot_update_another_user(self):
+        other_user = User.objects.create_user(username='other')
+        self.client.force_login(self.user)
+
+        response = self.client.get(reverse('user_update', args=[other_user.pk]))
+
+        self.assertRedirects(response, reverse('users'))
+        self.assertIn('У вас нет прав для изменения', self.messages(response))
+
+    def test_anonymous_user_cannot_delete(self):
+        response = self.client.get(reverse('user_delete', args=[self.user.pk]))
+
+        self.assertRedirects(
+            response,
+            f'{reverse("login")}?next={reverse("user_delete", args=[self.user.pk])}',
+        )
+
+    def test_authenticated_user_can_delete_user(self):
+        self.client.force_login(self.user)
+        user_to_delete = User.objects.create_user(username='to-delete')
+        response = self.client.post(
+            reverse('user_delete', args=[user_to_delete.pk]), follow=True
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(pk=user_to_delete.pk).exists())
+        self.assertContains(response, 'Пользователь успешно удален')

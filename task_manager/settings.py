@@ -92,6 +92,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'task_manager.wsgi.application'
 
+LOGIN_REDIRECT_URL = '/'
+LOGIN_URL = '/login/'
+LOGOUT_REDIRECT_URL = '/'
+
 
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
