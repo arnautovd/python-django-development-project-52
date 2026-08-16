@@ -28,8 +28,19 @@ class UserViewsTests(TestCase):
         self.assertContains(response, reverse('user_delete', args=[self.user.pk]))
 
     def test_registration_and_login_pages_are_available(self):
-        self.assertEqual(self.client.get(reverse('user_create')).status_code, 200)
-        self.assertEqual(self.client.get(reverse('login')).status_code, 200)
+        registration = self.client.get(reverse('user_create'))
+        login = self.client.get(reverse('login'))
+
+        self.assertEqual(registration.status_code, 200)
+        self.assertEqual(login.status_code, 200)
+        for field_name in ('username', 'password1', 'password2'):
+            self.assertContains(registration, f'name="{field_name}"')
+            self.assertContains(registration, f'id="id_{field_name}"')
+        self.assertContains(registration, 'Имя пользователя')
+        self.assertContains(registration, 'Пароль')
+        self.assertContains(registration, 'Подтверждение пароля')
+        self.assertContains(login, 'Имя пользователя')
+        self.assertContains(login, 'Пароль')
 
     def test_user_registration_redirects_to_login(self):
         response = self.client.post(

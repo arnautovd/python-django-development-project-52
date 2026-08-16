@@ -1,6 +1,5 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.messages.views import SuccessMessageMixin
@@ -9,7 +8,7 @@ from django.shortcuts import render
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
-from .forms import UserCreateForm, UserUpdateForm
+from .forms import UserCreateForm, UserLoginForm, UserUpdateForm
 
 User = get_user_model()
 
@@ -64,7 +63,7 @@ class UserDeleteView(LoginRequiredMixin, DeleteView):
 
 class UserLoginView(LoginView):
     template_name = 'login.html'
-    authentication_form = AuthenticationForm
+    authentication_form = UserLoginForm
     redirect_authenticated_user = False
 
     def form_valid(self, form):
