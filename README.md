@@ -24,3 +24,9 @@ uv run ruff check .
 ```
 
 Local development uses SQLite. Set `DATABASE_URL` in `.env` to use PostgreSQL.
+
+## Render
+
+The `render.yaml` blueprint creates a free web service and PostgreSQL database.
+The web service uses Gunicorn and runs migrations and `collectstatic` during the
+build.

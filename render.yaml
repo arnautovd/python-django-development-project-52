@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: hexlet-code
+    runtime: python
+    plan: free
+    buildCommand: uv sync --frozen && uv run python manage.py collectstatic --noinput && uv run python manage.py migrate
+    startCommand: uv run gunicorn task_manager.wsgi:application
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hexlet-code-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        value: webserver
+
+databases:
+  - name: hexlet-code-db
+    plan: free
