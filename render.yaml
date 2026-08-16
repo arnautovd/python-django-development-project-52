@@ -4,7 +4,7 @@ services:
     runtime: python
     plan: free
     buildCommand: uv sync --frozen && uv run python manage.py collectstatic --noinput && uv run python manage.py migrate
-    startCommand: uv run gunicorn task_manager.wsgi:application
+    startCommand: uv run gunicorn --bind 0.0.0.0:$PORT task_manager.wsgi:application
     envVars:
       - key: DATABASE_URL
         fromDatabase:
