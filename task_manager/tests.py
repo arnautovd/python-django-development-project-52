@@ -1,7 +1,12 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.contrib.messages import get_messages
+from django.db.models.deletion import ProtectedError
 from django.test import TestCase, override_settings
 from django.urls import reverse
+
+from .models import Status
 
 User = get_user_model()
 
@@ -142,3 +147,93 @@ class UserViewsTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(User.objects.filter(pk=user_to_delete.pk).exists())
         self.assertContains(response, 'Пользователь успешно удален')
+
+
+@override_settings(ALLOWED_HOSTS=['testserver'])
+class StatusViewsTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='status-owner', password='Strong-password-123'
+        )
+        self.client.force_login(self.user)
+        self.status = Status.objects.create(name='Новый')
+
+    def messages(self, response):
+        return [str(message) for message in get_messages(response.wsgi_request)]
+
+    def test_status_pages_require_authentication(self):
+        self.client.logout()
+
+        for name, args in (
+            ('statuses', []),
+            ('status_create', []),
+            ('status_update', [self.status.pk]),
+            ('status_delete', [self.status.pk]),
+        ):
+            response = self.client.get(reverse(name, args=args))
+            self.assertEqual(response.status_code, 302)
+            self.assertIn('/login/', response.url)
+
+    def test_status_list_contains_name_date_and_actions(self):
+        response = self.client.get(reverse('statuses'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Новый')
+        self.assertContains(response, 'Дата создания')
+        self.assertContains(response, reverse('status_update', args=[self.status.pk]))
+        self.assertContains(response, reverse('status_delete', args=[self.status.pk]))
+
+    def test_status_form_uses_name_field(self):
+        response = self.client.get(reverse('status_create'))
+
+        self.assertContains(response, 'name="name"')
+        self.assertContains(response, 'id="id_name"')
+        self.assertContains(response, 'Имя')
+
+    def test_status_creation_redirects_with_message(self):
+        response = self.client.post(
+            reverse('status_create'), {'name': 'В работе'}
+        )
+
+        self.assertRedirects(response, reverse('statuses'))
+        self.assertTrue(Status.objects.filter(name='В работе').exists())
+        self.assertIn('Статус успешно создан', self.messages(response))
+
+    def test_duplicate_status_name_has_validation_error(self):
+        response = self.client.post(
+            reverse('status_create'), {'name': self.status.name}
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'already exists')
+
+    def test_status_update_redirects_with_message(self):
+        response = self.client.post(
+            reverse('status_update', args=[self.status.pk]),
+            {'name': 'Завершен'},
+        )
+
+        self.assertRedirects(response, reverse('statuses'))
+        self.status.refresh_from_db()
+        self.assertEqual(self.status.name, 'Завершен')
+        self.assertIn('Статус успешно изменен', self.messages(response))
+
+    def test_status_delete_redirects_with_message(self):
+        response = self.client.post(
+            reverse('status_delete', args=[self.status.pk]), follow=True
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Status.objects.filter(pk=self.status.pk).exists())
+        self.assertContains(response, 'Статус успешно удален')
+
+    def test_protected_status_cannot_be_deleted(self):
+        error = ProtectedError('protected', [self.status])
+        with patch.object(Status, 'delete', side_effect=error):
+            response = self.client.post(
+                reverse('status_delete', args=[self.status.pk]), follow=True
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Status.objects.filter(pk=self.status.pk).exists())
+        self.assertContains(response, 'Невозможно удалить статус')

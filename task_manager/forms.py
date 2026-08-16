@@ -2,6 +2,8 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
+from .models import Status
+
 User = get_user_model()
 
 
@@ -39,3 +41,10 @@ class UserUpdateForm(forms.ModelForm):
             'last_name': 'Фамилия',
             'username': 'Имя пользователя',
         }
+
+
+class StatusForm(forms.ModelForm):
+    class Meta:
+        model = Status
+        fields = ('name',)
+        labels = {'name': 'Имя'}

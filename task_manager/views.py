@@ -3,12 +3,14 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.messages.views import SuccessMessageMixin
+from django.db.models.deletion import ProtectedError
 from django.http import HttpResponseRedirect
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
-from .forms import UserCreateForm, UserLoginForm, UserUpdateForm
+from .forms import StatusForm, UserCreateForm, UserLoginForm, UserUpdateForm
+from .models import Status
 
 User = get_user_model()
 
@@ -78,3 +80,41 @@ class UserLogoutView(LogoutView):
         response = super().post(request, *args, **kwargs)
         messages.success(request, 'Вы разлогинены')
         return response
+
+
+class StatusListView(LoginRequiredMixin, ListView):
+    model = Status
+    template_name = 'statuses.html'
+    context_object_name = 'statuses'
+
+
+class StatusCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
+    model = Status
+    form_class = StatusForm
+    template_name = 'status_create.html'
+    success_url = reverse_lazy('statuses')
+    success_message = 'Статус успешно создан'
+
+
+class StatusUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
+    model = Status
+    form_class = StatusForm
+    template_name = 'status_update.html'
+    success_url = reverse_lazy('statuses')
+    success_message = 'Статус успешно изменен'
+
+
+class StatusDeleteView(LoginRequiredMixin, DeleteView):
+    model = Status
+    template_name = 'status_delete.html'
+    success_url = reverse_lazy('statuses')
+
+    def form_valid(self, form):
+        try:
+            self.object.delete()
+        except ProtectedError:
+            messages.error(self.request, 'Невозможно удалить статус')
+            return redirect('statuses')
+
+        messages.success(self.request, 'Статус успешно удален')
+        return redirect(self.get_success_url())
